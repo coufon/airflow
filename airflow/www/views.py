@@ -54,6 +54,7 @@ from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_fai
                                                         set_dag_run_state_to_success)
 from airflow.models import Connection, DagModel, DagRun, Log, SlaMiss, TaskFail, XCom, \
     errors
+from airflow.settings import DAGCACHED_ENABLED
 from airflow.ti_deps.dep_context import DepContext, SCHEDULER_QUEUED_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
@@ -69,8 +70,9 @@ from airflow.www.forms import (ConnectionForm, DagRunForm, DateTimeForm,
 from airflow.www.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
+
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
-    dagbag = models.DagBag(settings.DAGS_FOLDER)
+    dagbag = models.DagBag(settings.DAGS_FOLDER, dagcached_enabled=DAGCACHED_ENABLED)
 else:
     dagbag = models.DagBag(os.devnull, include_examples=False)
 
@@ -1693,7 +1695,9 @@ class Airflow(AirflowBaseView):
     def paused(self):
         dag_id = request.args.get('dag_id')
         is_paused = True if request.args.get('is_paused') == 'false' else False
-        models.DagModel.get_dagmodel(dag_id).set_is_paused(is_paused=is_paused)
+        models.DagModel.get_dagmodel(dag_id).set_is_paused(
+            is_paused=is_paused,
+            dagcached_enabled=DAGCACHED_ENABLED)
         return "OK"
 
     @expose('/refresh', methods=['POST'])
@@ -1723,7 +1727,7 @@ class Airflow(AirflowBaseView):
     @has_access
     @action_logging
     def refresh_all(self):
-        dagbag.collect_dags(only_if_updated=False)
+        dagbag.collect_dags(only_if_updated=False, dagcached_enabled=DAGCACHED_ENABLED)
         # sync permissions for all dags
         for dag_id, dag in dagbag.dags.items():
             appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
