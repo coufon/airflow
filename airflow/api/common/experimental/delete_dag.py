@@ -25,7 +25,7 @@ from airflow import models
 from airflow.models import TaskFail, DagModel, SerializedDagModel
 from airflow.utils.db import provide_session
 from airflow.exceptions import DagFileExists, DagNotFound
-from airflow.settings import DAGCACHED_ENABLED
+from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -51,7 +51,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
 
     # Scheduler removes DAGs without files from serialized_dag table every dag_dir_list_interval.
     # There may be a lag, so explicitly removes serialized DAG here.
-    if DAGCACHED_ENABLED and SerializedDagModel.has_dag(dag_id=dag_id, session=session):
+    if STORE_SERIALIZED_DAGS and SerializedDagModel.has_dag(dag_id=dag_id, session=session):
         SerializedDagModel.remove_dag(dag_id=dag_id, session=session)
 
     count = 0
