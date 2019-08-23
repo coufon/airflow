@@ -25,6 +25,8 @@ import logging
 import math
 import os
 import socket
+import time
+import threading
 import traceback
 from collections import defaultdict
 from datetime import timedelta
@@ -75,6 +77,20 @@ if os.environ.get('SKIP_DAGS_PARSING') != 'True':
     dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
 else:
     dagbag = models.DagBag(os.devnull, include_examples=False)
+
+
+if STORE_SERIALIZED_DAGS:
+    dagbag_refresh_interval = conf.getint('webserver', 'dagbag_refresh_interval', fallback=60)
+    logging.info('Refresh DAG bag every %d seconds', dagbag_refresh_interval)
+
+    def _collect_dags_from_db():
+        while True:
+            time.sleep(dagbag_refresh_interval)
+            dagbag.collect_dags_from_db()
+
+    thread = threading.Thread(target=_collect_dags_from_db)
+    thread.daemon = True
+    thread.start()
 
 
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
